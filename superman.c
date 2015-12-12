@@ -12,7 +12,8 @@ int use_color = 0;
 const int S_COMMAND = 2;
 
 struct process {
-  char *cmd; // The command to be run
+  char* name;
+  char* cmd; // The command to be run
 };
 
 void print_with_color(int color, const char *msg, ...)
@@ -43,6 +44,18 @@ void print_with_color(int color, const char *msg, ...)
   }
 }
 
+void spawn_all(struct process processes[])
+{
+  int i;
+  int done;
+  while (!done)
+  {
+    print_with_color(33, "Spawning process: %s Command: %s", processes[i].name, processes[i].cmd);
+    i++;
+    done = (processes[i].cmd == NULL);
+  }
+}
+
 int main(int argc, char *argv[])
 {
     int number;
@@ -61,6 +74,7 @@ int main(int argc, char *argv[])
         yaml_parser_t parser;
         yaml_event_t event;
         char msgbuf[128];
+        struct process processes[MAX_PROCESSES];
         int done = 0;
         int count = 0;
         int error = 0;
@@ -78,9 +92,13 @@ int main(int argc, char *argv[])
 
         int block_depth = 0;
         int last_tag;
+        int cur_process = -1;
+        // char buf[128];
 
         while (!done)
         {
+            char buf[128];
+
             if (!yaml_parser_parse(&parser, &event)) {
                 error = 1;
                 break;
@@ -95,33 +113,32 @@ int main(int argc, char *argv[])
                 block_depth--;
                 break;
               case YAML_SCALAR_EVENT:
+                // Store value in the buffer
+                // sprintf(buf, "%s", event.data.scalar.value);
+                // printf("Buf: %s\n", buf);
+                printf("");
+                char this_buf[128];
+                sprintf(this_buf, "%s", event.data.scalar.value);
+
                 if (block_depth == 1)
                 {
-                  print_with_color(33, "Spawning process: %s", event.data.scalar.value);
+                  cur_process++;
+                  // strcpy(this_buf, buf);
+                  // printf("Creating process %s\n", this_buf);
+                  char name_buf[128];
+                  strcpy(name_buf, this_buf);
+                  processes[cur_process].name = name_buf;
                 }
 
-                // Store the value in a buffer
-                char buf[128];
-                sprintf(buf, "%s", event.data.scalar.value);
-
-                // Based on last tag
-                if (last_tag == S_COMMAND)
-                {
-                  print_with_color(32, "%s\n", buf);
-                  pid_t p = fork();
-                  if (p == 0)
-                  {
-                    int result = system(buf);
-                    print_with_color(33, "Restarting process %s...", last_tag);
-                    result = system(buf);
-                  }
-                  else
-                  {
-                    wait(&p);
-                  }
+                if (strcmp(this_buf, "command")) {
+                  // printf("COMMAND TAG\n");
+                  char cmd_buf[128];
+                  strcpy(cmd_buf, this_buf);
+                  processes[cur_process].cmd = cmd_buf;
                 }
 
-                if (buf[0] == 'c') last_tag = S_COMMAND;
+                printf("Process: %s Command: %s\n", processes[cur_process].name,
+                    processes[cur_process].cmd);
                 break;
               default:
                 // printf("Event type: %d\n", event.type);
@@ -139,7 +156,7 @@ int main(int argc, char *argv[])
 
         assert(!fclose(file));
 
-        printf("%s (%d events)\n", (error ? "FAILURE" : "SUCCESS"), count);
+        spawn_all(processes);
     }
 
     return 0;

@@ -1,2 +1,5 @@
-sleeper:
+sleeper1:
   command: time sleep 1
+
+sleeper2:
+  command: time sleep 2
