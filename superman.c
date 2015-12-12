@@ -5,6 +5,12 @@
 #include <assert.h>
 #include <time.h>
 
+const int MAX_PROCESSES = 100;
+
+struct process {
+  char *cmd; // The command to be run
+}
+
 void print_with_color(int color, char *msg)
 {
   time_t timer;
@@ -30,7 +36,7 @@ int main(int argc, char *argv[])
 {
     int number;
 
-    print_with_color(33, "hello");
+    print_with_color(33, "Started superman");
 
     if (argc < 2) {
         printf("Usage: %s file1.yaml ...\n", argv[0]);
@@ -42,11 +48,13 @@ int main(int argc, char *argv[])
         FILE *file;
         yaml_parser_t parser;
         yaml_event_t event;
+        char msgbuf[128];
         int done = 0;
         int count = 0;
         int error = 0;
 
-        printf("[%d] Parsing '%s': ", number, argv[number]);
+        sprintf(msgbuf, "Loading config from '%s'", argv[number]);
+        print_with_color(33, msgbuf);
         fflush(stdout);
 
         file = fopen(argv[number], "rb");
@@ -55,6 +63,8 @@ int main(int argc, char *argv[])
         assert(yaml_parser_initialize(&parser));
 
         yaml_parser_set_input_file(&parser, file);
+
+        int block_depth = 0;
 
         while (!done)
         {
@@ -65,6 +75,14 @@ int main(int argc, char *argv[])
 
             switch (event.type)
             {
+              case YAML_MAPPING_START_EVENT:
+                block_depth++;
+                printf("Mapping start %d\n", block_depth);
+                break;
+              case YAML_MAPPING_END_EVENT:
+                block_depth--;
+                printf("Depth %d\n", block_depth);
+                break;
               case YAML_SCALAR_EVENT:
                 printf("Value: %s\n", event.data.scalar.value);
                 break;

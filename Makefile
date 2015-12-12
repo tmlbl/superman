@@ -8,7 +8,7 @@ install: superman
 	ln -s `pwd -P`/superman /usr/local/bin/
 
 clean:
-	rm superman
+	rm -f superman
 
 .PHONY: test
 test: clean superman
