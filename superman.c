@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
               case YAML_SCALAR_EVENT:
                 if (block_depth == 1)
                 {
-                  print_with_color(33, "Creating process: %s", event.data.scalar.value);
+                  print_with_color(33, "Spawning process: %s", event.data.scalar.value);
                 }
 
                 // Store the value in a buffer
@@ -107,8 +107,18 @@ int main(int argc, char *argv[])
                 // Based on last tag
                 if (last_tag == S_COMMAND)
                 {
-                  printf("Command Value: %s\n", buf);
-                  system(buf);
+                  print_with_color(32, "%s\n", buf);
+                  pid_t p = fork();
+                  if (p == 0)
+                  {
+                    int result = system(buf);
+                    print_with_color(33, "Restarting process %s...", last_tag);
+                    result = system(buf);
+                  }
+                  else
+                  {
+                    wait(&p);
+                  }
                 }
 
                 if (buf[0] == 'c') last_tag = S_COMMAND;
