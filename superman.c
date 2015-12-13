@@ -18,10 +18,20 @@ struct process {
 
 void spawn_all(int np, struct process *ps[MAX_PROCESSES])
 {
-  for (np = np; np >= 0; np--)
+  for (np = np; np >= 0; --np)
   {
     printf("Running process %s\n", ps[np]->name);
-    system(ps[np]->cmd);
+    int pid = fork();
+    if (pid == 0)
+    {
+      printf("Child process\n");
+      int exit_code;
+      while (1)
+      {
+        exit_code = system(ps[np]->cmd);
+        printf("Child exited: %d\n", exit_code);
+      }
+    }
   }
 }
 
@@ -103,4 +113,9 @@ int main(int argc, char *argv[])
   printf("Name: %s Command: %s\n", ps[1]->name, ps[1]->cmd);
 
   spawn_all(this_process, ps);
+
+  while (1)
+  {
+    sleep(1);
+  }
 }
