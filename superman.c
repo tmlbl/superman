@@ -9,10 +9,12 @@
 
 const int MAX_PROCESSES = 100;
 const int BUF_SIZE = 128;
+const int YELLOW = 33;
 
 const int P_COMMAND = 1;
 
 static volatile int keepRunning = 1;
+int use_color = 0;
 
 struct process {
   char name[BUF_SIZE]; // Identifier
@@ -20,10 +22,37 @@ struct process {
   int  pid;
 };
 
+void sm_log(int color, const char *msg, ...)
+{
+  time_t timer;
+  char buffer[26];
+  char msg_buf[128];
+  struct tm* tm_info;
+  va_list ap;
+  int i;
+
+  va_start(ap, msg);
+  vsnprintf(msg_buf, 100, msg, ap);
+  va_end(ap);
+
+  time(&timer);
+  tm_info = localtime(&timer);
+
+  strftime(buffer, 26, "%Y/%m/%d %H:%M:%S", tm_info);
+
+  if (use_color)
+  {
+    printf("\x1B[35m[\x1B[36m%s\x1B[35m] \x1B[%dm%s\x1B[0m\n", buffer, color, msg_buf);
+  }
+  else
+  {
+    printf("[%s] %s\n", buffer, msg_buf);
+  }
+}
+
 // Override SIGINT -- kill all children
 void intHandler(int dummy)
 {
-  printf("Program was interrupted!\n");
   keepRunning = 0;
 }
 
@@ -31,16 +60,16 @@ void kill_all(int np, struct process *ps[MAX_PROCESSES])
 {
   for (np = np; np >= 0; --np)
   {
-    printf("Killing process %d\n", ps[np]->pid);
+    sm_log(YELLOW, "Killing process %d", ps[np]->pid);
     kill(ps[np]->pid, SIGKILL);
   }
 }
 
+// Spawn the processes gathered from config
 void spawn_all(int np, struct process *ps[MAX_PROCESSES])
 {
   for (np = np; np >= 0; --np)
   {
-    printf("Running process %s\n", ps[np]->name);
     int pid = fork();
     if (pid == 0)
     {
@@ -49,18 +78,19 @@ void spawn_all(int np, struct process *ps[MAX_PROCESSES])
       while (1)
       {
         exit_code = system(ps[np]->cmd);
-        printf("Child exited: %d\n", exit_code);
+        sm_log(YELLOW, "Child exited %d, restarting...", exit_code);
       }
     }
     else
     {
       int p = pid;
       ps[np]->pid = p;
-      printf("Started child with PID %d\n", pid);
+      sm_log(YELLOW, "Spawned \"%s\" with PID %d", ps[np]->name, pid);
     }
   }
 }
 
+// Read the config file
 int main(int argc, char *argv[])
 {
   // Processes
@@ -76,6 +106,9 @@ int main(int argc, char *argv[])
   int  done_parsing;
   int  block_depth;
   int  this_prop;
+
+  // Determine if we are logging to file or TTY
+  use_color = isatty(fileno(stdout));
 
   // Open the config file
   fflush(stdout);
@@ -135,8 +168,8 @@ int main(int argc, char *argv[])
     yaml_event_delete(&event);
   }
 
-  printf("Name: %s Command: %s\n", ps[0]->name, ps[0]->cmd);
-  printf("Name: %s Command: %s\n", ps[1]->name, ps[1]->cmd);
+  // printf("Name: %s Command: %s\n", ps[0]->name, ps[0]->cmd);
+  // printf("Name: %s Command: %s\n", ps[1]->name, ps[1]->cmd);
 
   spawn_all(this_process, ps);
 
