@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <unistd.h>
+#include <signal.h>
 #include <assert.h>
 #include <time.h>
 
@@ -11,10 +12,29 @@ const int BUF_SIZE = 128;
 
 const int P_COMMAND = 1;
 
+static volatile int keepRunning = 1;
+
 struct process {
   char name[BUF_SIZE]; // Identifier
   char cmd[BUF_SIZE];  // The command to be run
+  int  pid;
 };
+
+// Override SIGINT -- kill all children
+void intHandler(int dummy)
+{
+  printf("Program was interrupted!\n");
+  keepRunning = 0;
+}
+
+void kill_all(int np, struct process *ps[MAX_PROCESSES])
+{
+  for (np = np; np >= 0; --np)
+  {
+    printf("Killing process %d\n", ps[np]->pid);
+    kill(ps[np]->pid, SIGKILL);
+  }
+}
 
 void spawn_all(int np, struct process *ps[MAX_PROCESSES])
 {
@@ -24,13 +44,19 @@ void spawn_all(int np, struct process *ps[MAX_PROCESSES])
     int pid = fork();
     if (pid == 0)
     {
-      printf("Child process\n");
+      // printf("Child process with PID %d\n", pid);
       int exit_code;
       while (1)
       {
         exit_code = system(ps[np]->cmd);
         printf("Child exited: %d\n", exit_code);
       }
+    }
+    else
+    {
+      int p = pid;
+      ps[np]->pid = p;
+      printf("Started child with PID %d\n", pid);
     }
   }
 }
@@ -114,8 +140,11 @@ int main(int argc, char *argv[])
 
   spawn_all(this_process, ps);
 
-  while (1)
+  signal(SIGINT, intHandler);
+
+  while (keepRunning)
   {
     sleep(1);
   }
+  kill_all(this_process, ps);
 }
