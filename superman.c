@@ -12,6 +12,7 @@ const int BUF_SIZE = 128;
 const int YELLOW = 33;
 
 const int P_COMMAND = 1;
+const int P_FILE = 2;
 
 static volatile int keepRunning = 1;
 int use_color = 0;
@@ -20,6 +21,7 @@ struct process {
   char name[BUF_SIZE]; // Identifier
   char cmd[BUF_SIZE];  // The command to be run
   int  pid;
+  char file[BUF_SIZE]; // Path to log files
 };
 
 void sm_log(int color, const char *msg, ...)
@@ -73,12 +75,21 @@ void spawn_all(int np, struct process *ps[MAX_PROCESSES])
     int pid = fork();
     if (pid == 0)
     {
-      // printf("Child process with PID %d\n", pid);
+      // If log to file is specified, reassign stdout and stderr
+      if (strlen(ps[np]->file) > 0)
+      {
+        char outlog[BUF_SIZE];
+        char errlog[BUF_SIZE];
+        sprintf(outlog, "%s.log", ps[np]->file);
+        sprintf(errlog, "%s.error.log", ps[np]->file);
+        freopen(outlog, "a", stdout);
+        freopen(errlog, "a", stderr);
+      }
       int exit_code;
       while (1)
       {
         exit_code = system(ps[np]->cmd);
-        sm_log(YELLOW, "Child exited %d, restarting...", exit_code);
+        sm_log(YELLOW, "%s exited %d, restarting...", ps[np]->name, exit_code);
       }
     }
     else
@@ -106,6 +117,7 @@ int main(int argc, char *argv[])
   int  done_parsing;
   int  block_depth;
   int  this_prop;
+  char *this_token;
 
   // Determine if we are logging to file or TTY
   use_color = isatty(fileno(stdout));
@@ -137,7 +149,7 @@ int main(int argc, char *argv[])
         ; // Copy the value into a buffer
         char this_buf[BUF_SIZE];
         sprintf(this_buf, "%s", event.data.scalar.value);
-        // printf("%s at depth %d\n", this_buf, block_depth);
+        this_token = this_buf;
 
         // Create a new process
         if (block_depth == 1)
@@ -153,12 +165,21 @@ int main(int argc, char *argv[])
           if (this_prop == P_COMMAND)
           {
             this_prop = 0;
+            strcpy(p->cmd, this_token);
+          }
+          if (this_prop == P_FILE)
+          {
+            this_prop = 0;
+            strcpy(p->file, this_token);
           }
 
-          if (strcmp(this_buf, "command"))
+          if (!strcmp(this_token, "command"))
           {
-            strcpy(p->cmd, this_buf);
             this_prop = P_COMMAND;
+          }
+          if (!strcmp(this_token, "file"))
+          {
+            this_prop = P_FILE;
           }
         }
         break;
@@ -168,7 +189,7 @@ int main(int argc, char *argv[])
     yaml_event_delete(&event);
   }
 
-  // printf("Name: %s Command: %s\n", ps[0]->name, ps[0]->cmd);
+  // printf("Name: %s Command: %s File: %s\n", ps[0]->name, ps[0]->cmd, ps[0]->file);
   // printf("Name: %s Command: %s\n", ps[1]->name, ps[1]->cmd);
 
   spawn_all(this_process, ps);
