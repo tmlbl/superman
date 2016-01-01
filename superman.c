@@ -82,8 +82,22 @@ void spawn_all(int np, struct process *ps[MAX_PROCESSES])
         char errlog[BUF_SIZE];
         sprintf(outlog, "%s.log", ps[np]->file);
         sprintf(errlog, "%s.error.log", ps[np]->file);
-        freopen(outlog, "a", stdout);
-        freopen(errlog, "a", stderr);
+        FILE *outfile;
+        outfile = freopen(outlog, "a", stdout);
+        if (outfile == NULL)
+        {
+          char errmsg[BUF_SIZE];
+          sprintf(errmsg, "Error opening %s", outlog);
+          perror(errmsg);
+        }
+        FILE *errfile;
+        errfile = freopen(errlog, "a", stderr);
+        if (errfile == NULL)
+        {
+          char errmsg[BUF_SIZE];
+          sprintf(errmsg, "Error opening %s", errlog);
+          perror(errmsg);
+        }
       }
       int exit_code;
       while (1)

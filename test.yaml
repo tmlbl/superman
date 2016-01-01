@@ -1,6 +1,6 @@
 sleeper1:
   command: time sleep 1
-  file: sleepr
+  file: /var/log/sleepr
 
 sleeper2:
   command: time sleep 2
