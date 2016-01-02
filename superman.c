@@ -115,7 +115,6 @@ void spawn_all(int np, struct process *ps[MAX_PROCESSES])
   }
 }
 
-// Read the config file
 int main(int argc, char *argv[])
 {
   // Processes
@@ -139,6 +138,13 @@ int main(int argc, char *argv[])
   // Open the config file
   fflush(stdout);
   file = fopen(argv[1], "rb");
+  if (file == NULL)
+  {
+    char errmsg[BUF_SIZE];
+    sprintf(errmsg, "Error opening %s", argv[1]);
+    perror(errmsg);
+    exit(1);
+  }
   // Initialize YAML parser
   yaml_parser_initialize(&parser);
   yaml_parser_set_input_file(&parser, file);
